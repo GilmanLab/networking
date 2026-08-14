@@ -1,6 +1,6 @@
 site_name: GilmanLab Networking
 site_description: Core networking architecture and operations for GilmanLab
-site_url: https://gilmanlab.github.io/networking/
+site_url: https://docs.gilman.io/networking/
 repo_name: GilmanLab/networking
 repo_url: https://github.com/GilmanLab/networking
 edit_uri: edit/master/docs/docs/
