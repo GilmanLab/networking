@@ -13,45 +13,31 @@ related-decisions:
 
 ## Summary
 
-Lab v2 will use VyOS for routing and traffic policy and MikroTik for switching.
-This design will define the physical topology, VLANs, addressing, routing,
-firewall policy, network services, configuration lifecycle, and failure
-behavior. The current draft establishes the design boundary and the decisions
-that remain open. It does not assign production addresses or switch ports.
+The core network uses a Minisforum VP6630 running VyOS for Layer 3 routing,
+firewall policy, and NAT. A MikroTik switch handles Layer 2 switching and VLAN
+transport. A MikroTik CCR2004 connects the lab to the home network and the
+internet.
 
-## Context and Scope
-
-Lab v1 contains a working VyOS configuration and network documentation. Those
-sources identify useful constraints, but they also combine core networking with
-hardware-specific and compute-platform assumptions. Lab v2 will verify the
-physical environment and derive a smaller core network before it imports any
-configuration.
-
-The legacy sources are evidence, not Lab v2 configuration:
-
-- [VyOS gateway configuration](https://github.com/GilmanLab/lab/blob/master/infrastructure/network/vyos/configs/gateway.conf)
-- [Network description](https://github.com/GilmanLab/lab/blob/master/docs/architecture/08_concepts/networking.md)
-
-[ADR-0001](../../decisions/0001-use-vyos-for-layer-3-and-mikrotik-for-layer-2.md)
-assigns Layer 3 routing and policy to VyOS and Layer 2 switching to MikroTik.
+This design defines device responsibilities, logical topology, configuration
+requirements, failure boundaries, and verification criteria. Address
+allocation, VLAN allocation, physical port assignment, and network-service
+ownership are outside this document.
 
 ## Goals
 
-- Verify each managed network device, interface, link, and supported link speed.
-- Define the physical topology and the responsibility of each device.
-- Define VLANs, subnets, gateway addresses, and allocation rules.
-- Define routes between the home network, lab networks, and the internet.
-- Define NAT behavior and source-address preservation.
-- Define a default traffic policy and each permitted flow between network
-  segments.
-- Assign DHCP, DNS, and time-service responsibilities.
-- Define management access and recovery access.
-- Store VyOS and MikroTik configuration in version control.
-- Define validation, deployment, rollback, and drift-detection behavior.
-- State the effect of a gateway, switch, link, or upstream-router failure.
+- Keep routing and traffic policy on VyOS.
+- Keep VLAN transport and physical switching on MikroTik.
+- Route home-to-lab traffic without source NAT.
+- Apply source NAT to lab-to-internet traffic on VyOS.
+- Store network-device configuration in version control.
+- Validate behavior before saving a deployed configuration.
+- Preserve a recovery path that does not depend on the primary network path.
 
 ## Non-goals
 
+- Address and VLAN allocation
+- Physical port and cable assignment
+- DHCP, DNS, or time-service ownership
 - Compute-platform network configuration
 - Workload network overlays
 - Application ingress or service advertisement
@@ -59,237 +45,106 @@ assigns Layer 3 routing and policy to VyOS and Layer 2 switching to MikroTik.
 - Service-to-service traffic policy
 - Storage protocol design
 
-These systems may use the core network after its interfaces and policies are
-stable.
-
-## Design Overview
-
-The initial logical boundary is:
+## Logical Topology
 
 ```mermaid
 flowchart LR
-    HOME[Home network] --> EDGE[Home router]
-    EDGE -->|Routed transit| VYOS[VyOS gateway]
+    HOME[Home network] --> CCR[CCR2004]
+    CCR -->|Routed transit| VYOS[VP6630 running VyOS]
     VYOS -->|802.1Q trunk| SWITCH[MikroTik switch]
     SWITCH --> SEGMENTS[Lab network segments]
 ```
 
-The diagram does not assign interfaces, addresses, VLAN IDs, or link speeds.
-The design will assign those values after physical verification.
+The CCR2004 routes traffic between the home network and the VyOS transit
+interface. VyOS routes lab prefixes, applies firewall policy, and performs
+source NAT for internet egress. The MikroTik switch carries VLANs between VyOS
+and connected lab devices.
 
-VyOS routes traffic between lab segments and applies firewall policy. VyOS also
-controls lab egress and NAT. MikroTik carries VLANs between VyOS and connected
-devices. The design will specify whether any segment remains Layer 2-only.
+## Device Responsibilities
 
-## Detailed Design
+| Device | Responsibilities |
+| --- | --- |
+| MikroTik CCR2004 | Home-network routing, internet access, and the upstream side of the routed lab transit |
+| Minisforum VP6630 running VyOS | Lab gateways, route selection, firewall policy, source NAT, and the downstream side of the routed transit |
+| MikroTik switch | VLAN transport, access ports, trunks, and physical link aggregation |
 
-### Physical Topology
+[ADR-0001](../../decisions/0001-use-vyos-for-layer-3-and-mikrotik-for-layer-2.md)
+defines the Layer 2 and Layer 3 boundary.
 
-The physical topology will identify:
+## Routing and NAT
 
-- Device manufacturer, model, and operating system
-- Interface name, media, supported speed, and MAC address
-- Cable endpoints and negotiated speed
-- Access, trunk, aggregation, and management links
-- Out-of-band access that remains available after a configuration failure
+The routing design has these invariants:
 
-The first implementation step is an on-device inventory. The design must not
-reuse the Lab v1 interface mapping until the inventory confirms it.
+- The CCR2004 has routes for lab prefixes through the VyOS transit address.
+- VyOS uses the CCR2004 transit address as its default route.
+- VyOS owns the gateway address for every routed lab segment.
+- MikroTik does not route between lab segments.
+- Home-to-lab traffic retains its original source address.
+- VyOS applies source NAT to lab-to-internet traffic.
+- Firewall rules distinguish new connections from established reply traffic.
 
-### Device Responsibilities
+## Traffic Policy
 
-| Device | Assigned responsibility | Not assigned by this design |
-| --- | --- | --- |
-| VyOS gateway | Routed gateways, route selection, firewall policy, NAT | Final DHCP, DNS, and time-service ownership |
-| MikroTik switch | VLAN transport, access ports, trunks, physical link aggregation | Routing between lab segments |
-| Home router | Home-network routing and the upstream side of the lab transit | Lab inter-segment policy |
+VyOS enforces policy for:
 
-The home-router role comes from the Lab v1 topology. Lab v2 must confirm the
-specific device and transit behavior.
-
-### VLANs and Addressing
-
-The accepted design will define each segment in one table with these fields:
-
-- VLAN ID and name
-- Purpose and trust level
-- IPv4 subnet and, if used, IPv6 prefix
-- Gateway owner and address
-- Allocation method
-- DHCP range and reservation range
-- DNS behavior
-- Routed or Layer 2-only status
-- Maximum transmission unit
-
-Lab v1 used `10.10.0.0/16` for lab networks and divided it into `/24` subnets.
-That allocation is a candidate input, not an accepted Lab v2 address plan.
-
-The design will avoid workload-specific segment names. Segment names will
-state their network function or trust boundary.
-
-### Routing and NAT
-
-The accepted design will specify:
-
-- The home-to-lab transit network and both endpoints
-- The route that the home router uses for lab prefixes
-- The default route that VyOS uses for internet access
-- Which prefixes VyOS advertises or configures statically
-- Where source NAT applies
-- Which flows retain their original source address
-- Route preference and failure behavior
-
-Lab v1 used a routed `/30` transit between the home router and VyOS. It also
-applied source NAT to lab egress. Lab v2 must confirm whether that model remains
-necessary and whether it causes more than one layer of NAT.
-
-### Traffic and Firewall Policy
-
-The design will express policy as a directional traffic matrix. Each rule will
-identify:
-
-- Source segment
-- Destination segment or external network
-- Protocol and destination port
-- Connection direction
-- Required source-address behavior
-- Reason and owning service
-
-The design must define default behavior for:
-
-- Home network to lab
-- Lab to home network
-- Lab to internet
-- Traffic between lab segments
+- Home network to lab segments
+- Lab segments to the home network
+- Lab segments to the internet
+- Traffic between routed lab segments
 - Traffic addressed to VyOS
-- Management access to network devices
+- Management traffic addressed to network devices
 
-Stateful reply traffic is not a separate initiated flow. The implementation
-will distinguish established replies from new connections.
+Each firewall rule identifies the source, destination, protocol, destination
+port, connection direction, and owner. Rules permit required flows explicitly.
+Stateful rules permit established reply traffic without permitting a new flow in
+the reverse direction.
 
-### DHCP, DNS, and Time
+## Configuration Requirements
 
-The design will assign one owner for each service on each segment.
+VyOS and MikroTik each have one version-controlled configuration source. The
+deployment process:
 
-For DHCP, it will define the server or relay, allocation range, reservations,
-lease behavior, and failure behavior. For DNS, it will define upstream
-resolvers, local authoritative zones, forwarding behavior, and the domain used
-for lab names. For time synchronization, it will define the upstream source and
-whether network devices serve downstream clients.
+1. Renders the effective configuration.
+2. Validates syntax and policy before deployment.
+3. Shows the effective change for operator review.
+4. Applies the change without saving it as the startup configuration.
+5. Verifies required connectivity and policy behavior.
+6. Saves the configuration only after verification succeeds.
+7. Restores the previous configuration when verification fails.
 
-No Lab v1 DHCP range, resolver, or local domain becomes a Lab v2 value without
-review.
+Drift detection compares each running configuration with its repository source.
 
-### Management and Recovery Access
+## Management and Recovery
 
-The design will define:
+Firewall policy limits routine management access to approved source networks.
 
-- The network path used for routine administration
-- The source networks permitted to manage each device
-- Authentication and secret storage
-- Access available when the primary trunk or gateway configuration fails
-- Console or physical recovery requirements
+Each device has a recovery path that remains available when its production
+configuration or primary network link fails. Recovery credentials do not reside
+in device configuration committed to the repository.
 
-Management access must not depend only on the configuration being repaired.
+## Failure Boundaries
 
-### Configuration Lifecycle
+| Failure | Effect |
+| --- | --- |
+| CCR2004 failure | The lab loses home-network and internet connectivity. Internal lab switching and routing remain available. |
+| VP6630 or VyOS failure | Routed lab segments lose their gateways, inter-segment routing, policy enforcement, and internet egress. |
+| MikroTik switch failure | Devices connected through the switch lose Layer 2 connectivity. |
+| Routed transit failure | Home-to-lab and lab-to-internet traffic stop. Internal lab traffic remains available within its unaffected Layer 2 and Layer 3 paths. |
+| VyOS-to-MikroTik trunk failure | VLANs carried by the trunk lose their VyOS gateways. |
+| Invalid configuration | Deployment verification fails and the previous configuration is restored. |
 
-VyOS and MikroTik will each have one version-controlled configuration source.
-The delivery design will define:
+## Verification
 
-1. How a change is rendered or generated
-2. How automation validates syntax and policy before deployment
-3. How an operator reviews the effective change
-4. How automation applies the change
-5. How automation verifies connectivity before saving it
-6. How an operator rolls back a failed change
-7. How automation detects drift from the repository state
+A deployment is valid when the observed behavior matches these checks:
 
-The selected tools and configuration formats remain open.
-
-### Failure Behavior
-
-The accepted design will state the observed effect and recovery path for:
-
-- VyOS failure
-- MikroTik failure
-- Loss of the VyOS-to-MikroTik trunk
-- Loss of the home transit
-- Loss of one member of an aggregated link
-- DHCP or DNS failure
-- Invalid or partially applied configuration
-
-The current hardware appears to provide one gateway and one switch. The design
-must either accept those single points of failure or add redundancy with a
-specific recovery model.
-
-## Delivery
-
-### Migration and Rollout
-
-Lab v2 will not modify the current network until the design identifies the
-physical links, management path, rollback method, and expected validation
-results. The implementation sequence will be developed after those facts are
-known.
-
-### Rollback and Recovery
-
-The implementation must preserve a tested path to the previous device
-configuration. The design must state whether rollback uses a timed commit,
-startup configuration, console access, configuration backup, or another
-verified mechanism for each device.
-
-### Validation
-
-Acceptance evidence must cover the changed behavior, not only configuration
-presence. At minimum, validation will observe:
-
-- Negotiated interface state and speed
-- VLAN membership and isolation
-- Gateway reachability from each routed segment
-- Expected routes on VyOS and the home router
-- Permitted and denied flows from the traffic matrix
-- Source addresses before and after NAT
-- DHCP lease allocation where DHCP is enabled
-- Forward and reverse DNS behavior where DNS is enabled
-- Management access from permitted and denied sources
-- Rollback after a deliberately rejected or failed change
-
-## Alternatives Considered
-
-### Import the Lab v1 configuration unchanged
-
-- Advantage: Existing files provide a detailed starting point.
-- Disadvantage: They include assumptions outside the Lab v2 core-network scope.
-- Disadvantage: Interface mappings, switch hardware, and physical cabling have
-  not been verified for Lab v2.
-- Outcome: Use the files as evidence, not as the Lab v2 source of truth.
-
-### Route lab segments on MikroTik
-
-- Advantage: Routed traffic can remain on the switch.
-- Disadvantage: Routing and policy ownership would be split between MikroTik
-  and VyOS.
-- Outcome: Rejected by ADR-0001.
-
-### Use one flat Layer 2 lab network
-
-- Advantage: Fewer gateways and traffic policies are required.
-- Disadvantage: Network functions cannot have routed security boundaries.
-- Disadvantage: Broadcasts and Layer 2 failures affect every connected system.
-- Outcome: Rejected by ADR-0001.
-
-## Open Questions
-
-1. What are the exact models, interface names, port capabilities, and current
-   cable endpoints?
-2. Which device and interfaces terminate the home-to-lab transit?
-3. Which network functions require separate trust boundaries?
-4. Which VLAN IDs, IPv4 subnets, and IPv6 prefixes will Lab v2 use?
-5. Does any segment need to remain Layer 2-only?
-6. What MTU applies to access ports, trunks, routed links, and aggregated links?
-7. Which device or service owns DHCP, DNS, and time synchronization?
-8. What is the default inter-segment firewall policy?
-9. Is one VyOS gateway and one MikroTik switch an accepted failure model?
-10. Which tools will render, validate, deploy, roll back, and audit each device
-    configuration?
+- Every connected interface reports the assigned link state and speed.
+- Each VLAN is present only on its assigned access ports and trunks.
+- A client in each routed segment reaches its VyOS gateway.
+- The CCR2004 and VyOS route tables contain the required transit and lab routes.
+- Home-to-lab traffic retains its home-network source address.
+- Lab-to-internet traffic uses the VyOS source-NAT address.
+- Each permitted firewall flow succeeds.
+- Each denied firewall flow fails.
+- Established reply traffic succeeds without enabling a new reverse flow.
+- Management access succeeds only from approved source networks.
+- A failed deployment restores the previous configuration.
