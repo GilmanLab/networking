@@ -7,9 +7,9 @@ date: 2026-08-14
 
 ## Context and Problem Statement
 
-The Lab v2 core network needs explicit ownership for switching, routing, and
-traffic policy. The selected hardware includes a VyOS gateway and a MikroTik
-switch. Which device should own each network function?
+The core network needs explicit ownership for switching, routing, and traffic
+policy. The network uses a VyOS gateway and a MikroTik switch. Which device owns
+each network function?
 
 ## Decision Drivers
 
@@ -30,9 +30,7 @@ Use VyOS for routed lab gateways, route selection, firewall policy, and NAT.
 Use MikroTik for Layer 2 switching, VLAN transport, and physical link
 aggregation.
 
-DHCP and DNS ownership are not part of this decision. The
-[Lab v2 core network design](../designs/drafts/lab-v2-core-network.md) will
-assign those functions.
+DHCP, DNS, and time-service ownership are outside the scope of this decision.
 
 ### Consequences
 
@@ -68,7 +66,8 @@ A management address on the MikroTik switch does not violate this decision.
 - Good, because the switch can route traffic without sending it through the
   VyOS trunk.
 - Bad, because firewall and routing ownership would be split between devices.
-- Bad, because Lab v2 would need policy coordination between MikroTik and VyOS.
+- Bad, because the network would need policy coordination between MikroTik and
+  VyOS.
 
 ### Flat Layer 2 lab network
 
@@ -78,8 +77,4 @@ A management address on the MikroTik switch does not violate this decision.
 
 ## More Information
 
-The Lab v1
-[VyOS gateway configuration](https://github.com/GilmanLab/lab/blob/master/infrastructure/network/vyos/configs/gateway.conf)
-used the same router-and-switch responsibility split. Lab v2 will verify the
-hardware mapping and redesign the detailed configuration instead of treating
-that file as current configuration.
+See the [Lab v2 core network design](../designs/drafts/lab-v2-core-network.md).
