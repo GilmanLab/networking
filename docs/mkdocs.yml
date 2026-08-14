@@ -1,0 +1,47 @@
+site_name: GilmanLab Networking
+site_description: Core networking architecture and operations for GilmanLab
+site_url: https://gilmanlab.github.io/networking/
+repo_name: GilmanLab/networking
+repo_url: https://github.com/GilmanLab/networking
+edit_uri: edit/master/docs/docs/
+docs_dir: docs
+site_dir: build
+strict: true
+
+theme:
+  name: material
+  language: en
+  features:
+    - content.action.edit
+    - navigation.instant
+    - navigation.tracking
+    - search.highlight
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences

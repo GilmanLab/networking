@@ -1,0 +1,20 @@
+# Moon
+.moon/cache/
+.moon/docker/
+
+# mise local overrides
+mise.local.toml
+.mise.local.toml
+
+# Python and MkDocs
+__pycache__/
+*.py[cod]
+.venv/
+docs/.venv/
+docs/build/
+
+# OS and editors
+.DS_Store
+.idea/
+.vscode/
+*.swp

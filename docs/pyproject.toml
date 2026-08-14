@@ -1,0 +1,11 @@
+[project]
+name = "gilmanlab-networking-docs"
+version = "0.0.0"
+description = "Documentation for the GilmanLab core networking stack."
+requires-python = ">=3.14"
+dependencies = [
+    "mkdocs-material>=9.7.0",
+]
+
+[tool.uv]
+package = false
