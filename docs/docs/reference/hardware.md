@@ -1,6 +1,6 @@
 ---
 title: Hardware
-description: Core network devices, connections, and assigned roles.
+description: Core network devices and their assigned roles.
 ---
 
 # Hardware
@@ -19,14 +19,7 @@ description: Core network devices, connections, and assigned roles.
 | --- | --- | --- |
 | Home router | MikroTik CCR2004 | Routes the home network, provides internet access, and terminates the upstream side of the routed lab transit |
 
-## Connections
-
-| Endpoints | Connection |
-| --- | --- |
-| CCR2004 to VP6630 | Routed lab transit |
-| VP6630 to CRS309-1G-8S+IN | 802.1Q trunk for lab VLANs |
-| VP6630 to TEG-3102WS | Direct management/OOB uplink |
-| TEG-3102WS to each MS-02 | Two non-SFP NICs carrying management/OOB traffic |
-
-See the [Lab v2 core network design](../designs/drafts/lab-v2-core-network.md)
-for the topology and device boundaries.
+The [physical connection map](physical-connections.md) records every installed
+cable and its endpoint ports. The
+[Lab v2 core network design](../designs/drafts/lab-v2-core-network.md) defines
+the logical topology and device boundaries.
