@@ -64,6 +64,8 @@ interface. VyOS routes lab prefixes, applies firewall policy, and performs
 source NAT for internet egress. The CRS309-1G-8S+IN carries lab VLANs between
 VyOS and connected lab devices. The TEG-3102WS connects directly to the VP6630
 and carries management/OOB traffic for both non-SFP NICs on each MS-02.
+The [physical connection map](../../reference/physical-connections.md) is the
+authoritative port-to-port cabling record.
 
 ## Device Responsibilities
 

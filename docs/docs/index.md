@@ -17,8 +17,10 @@ VLAN transport. A TRENDnet TEG-3102WS handles MS-02 management/OOB switching.
   verification criteria.
 - [ADR-0001: Use VyOS for Layer 3 and Dedicated Switches for Layer 2](decisions/0001-use-vyos-for-layer-3-and-switches-for-layer-2.md)
   assigns routing and switching responsibilities.
-- [Hardware](reference/hardware.md) identifies the core network devices,
-  connections, and roles.
+- [Hardware](reference/hardware.md) identifies the core network devices and
+  their roles.
+- [Physical connections](reference/physical-connections.md) records every
+  installed cable and its endpoint ports.
 
 Compute platforms, workload networking, and application delivery are outside
 the core network documentation.
