@@ -10,8 +10,6 @@ mise.local.toml
 __pycache__/
 *.py[cod]
 .venv/
-docs/.venv/
-docs/build/
 
 # OS and editors
 .DS_Store
