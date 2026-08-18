@@ -1,0 +1,55 @@
+// GilmanLab tailnet policy file.
+//
+// This file is the source of truth for the tailnet's access control policy.
+// Change it through a pull request against GilmanLab/networking: CI validates
+// the policy on pull requests and applies it to the tailnet on merge to master.
+// Edits made directly in the Tailscale admin console are overwritten by the
+// next apply.
+//
+// Reference:
+// https://github.com/GilmanLab/root/blob/master/docs/docs/reference/networking/tailscale-policy.md
+{
+	// Who may assign each tag to a device.
+	"tagOwners": {
+		"tag:subnet-router": ["autogroup:admin"],
+	},
+
+	// Routes a subnet router may advertise without manual approval. These are
+	// the lab and home ranges; keep them aligned with the address plan.
+	"autoApprovers": {
+		"routes": {
+			"10.10.0.0/16":   ["tag:subnet-router"],
+			"172.16.0.0/16":  ["tag:subnet-router"],
+			"192.168.1.0/24": ["tag:subnet-router"],
+			"192.168.2.0/24": ["tag:subnet-router"],
+		},
+	},
+
+	"acls": [
+		// Admins reach everything in the tailnet.
+		{"action": "accept", "src": ["autogroup:admin"], "dst": ["*:*"]},
+
+		// Subnet routers reach each other so routed traffic can transit
+		// between them.
+		{
+			"action": "accept",
+			"src":    ["tag:subnet-router"],
+			"dst":    ["tag:subnet-router:*"],
+		},
+
+		// Routed hosts in the lab and home ranges reach each other in both
+		// directions.
+		{"action": "accept", "src": ["10.10.0.0/16"], "dst": ["172.16.0.0/16:*"]},
+		{"action": "accept", "src": ["172.16.0.0/16"], "dst": ["10.10.0.0/16:*"]},
+	],
+
+	"ssh": [
+		// Tailscale SSH to your own devices, with periodic reauthentication.
+		{
+			"action": "check",
+			"src":    ["autogroup:member"],
+			"dst":    ["autogroup:self"],
+			"users":  ["autogroup:nonroot", "root"],
+		},
+	],
+}
