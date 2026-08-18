@@ -11,6 +11,9 @@ __pycache__/
 *.py[cod]
 .venv/
 
+# Tailscale gitops-pusher etag cache
+version-cache.json
+
 # OS and editors
 .DS_Store
 .idea/
