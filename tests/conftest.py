@@ -16,7 +16,7 @@ interfaces {
         vif 40 {
         }
     }
-    ethernet eth2 {
+    ethernet eth3 {
         vif 10 {
         }
         vif 70 {
@@ -26,12 +26,24 @@ interfaces {
 interfaces {
     bridge br10 {
         address 10.10.10.1/24
+        member {
+            interface eth3.10 {
+            }
+        }
     }
     bridge br40 {
         address 10.10.40.1/24
+        member {
+            interface eth2 {
+            }
+        }
     }
     bridge br70 {
         address 10.10.70.1/24
+        member {
+            interface eth3.70 {
+            }
+        }
     }
 }
 protocols {
@@ -44,6 +56,9 @@ protocols {
 }
 service {
     dhcp-server {
+        listen-interface br10
+        listen-interface br40
+        listen-interface br70
     }
 }
 container {

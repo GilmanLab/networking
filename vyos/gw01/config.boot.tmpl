@@ -6,15 +6,15 @@
  * Interface mapping:
  *   eth0  SFP+ 1  routed transit 10.0.0.2/30 to rtr01
  *   eth1  SFP+ 2  802.1Q trunk VLANs 10,40 to sw-core01
- *   eth2  Port 2  802.1Q trunk VLANs 10,70 to sw-mgmt01
- *   eth3  Port 1  untagged VLAN 40 to sandbox01
+ *   eth2  Port 2  untagged VLAN 40 to sandbox01
+ *   eth3  Port 1  802.1Q trunk VLANs 10,70 to sw-mgmt01
  *   eth4  Port 3  untagged VLAN 70 to pikvm01
  *   eth5  Port 4  untagged VLAN 70 to kvm01
  *
  * Bridges carry each client VLAN across every port that shares it:
- *   br10 = eth1.10 + eth2.10
- *   br40 = eth1.40 + eth3
- *   br70 = eth2.70 + eth4 + eth5
+ *   br10 = eth1.10 + eth3.10
+ *   br40 = eth1.40 + eth2
+ *   br70 = eth3.70 + eth4 + eth5
  *
  * The renderer replaces the SSH public-key sentinel in memory and appends
  * component metadata captured from the live /config/config.boot. The
@@ -565,7 +565,7 @@ interfaces {
         member {
             interface eth1.10 {
             }
-            interface eth2.10 {
+            interface eth3.10 {
             }
         }
     }
@@ -575,7 +575,7 @@ interfaces {
         member {
             interface eth1.40 {
             }
-            interface eth3 {
+            interface eth2 {
             }
         }
     }
@@ -583,7 +583,7 @@ interfaces {
         address 10.10.70.1/24
         description "LAB_OOB - OOB"
         member {
-            interface eth2.70 {
+            interface eth3.70 {
             }
             interface eth4 {
             }
@@ -617,6 +617,15 @@ interfaces {
         }
     }
     ethernet eth2 {
+        description "LAN - sandbox01 untagged VLAN 40"
+        offload {
+            gro
+            gso
+            sg
+            tso
+        }
+    }
+    ethernet eth3 {
         description "TRUNK - sw-mgmt01 VLANs 10,70"
         offload {
             gro
@@ -629,15 +638,6 @@ interfaces {
         }
         vif 70 {
             description "LAB_OOB - Bridge member (br70)"
-        }
-    }
-    ethernet eth3 {
-        description "LAN - sandbox01 untagged VLAN 40"
-        offload {
-            gro
-            gso
-            sg
-            tso
         }
     }
     ethernet eth4 {
@@ -695,9 +695,9 @@ protocols {
 }
 service {
     dhcp-server {
-        listen-address 10.10.10.1
-        listen-address 10.10.40.1
-        listen-address 10.10.70.1
+        listen-interface br10
+        listen-interface br40
+        listen-interface br70
         shared-network-name LAB_MGMT {
             subnet 10.10.10.0/24 {
                 lease 86400
