@@ -1,0 +1,3 @@
+# Tool versions (Python, uv, moon) are managed by mise (mise.toml + mise.lock);
+# moon runs every task against `system` binaries that mise puts on PATH.
+{}

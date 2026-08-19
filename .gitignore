@@ -10,6 +10,11 @@ mise.local.toml
 __pycache__/
 *.py[cod]
 .venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+
 
 # Tailscale gitops-pusher etag cache
 version-cache.json

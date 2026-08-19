@@ -1,0 +1,16 @@
+glab.lol:53 {
+    bind 10.10.10.54 10.10.10.1 10.10.40.1 10.10.70.1
+    errors
+    log
+    file /zones/glab.lol.zone glab.lol {
+        reload 30s
+    }
+}
+
+.:53 {
+    bind 10.10.10.1 10.10.40.1 10.10.70.1
+    cache 300
+    errors
+    forward . 1.1.1.1 8.8.8.8
+    log
+}
