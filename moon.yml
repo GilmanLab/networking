@@ -1,0 +1,110 @@
+language: 'python'
+layer: 'application'
+stack: 'backend'
+tags:
+  - 'network'
+  - 'vyos'
+  - 'uv'
+
+project:
+  title: 'Lab2 network'
+  description: 'Static validation and operator tooling for the lab2 gw01 VyOS gateway.'
+  owner: 'GilmanLab'
+  maintainers:
+    - 'josh'
+
+toolchains:
+  default: 'system'
+
+fileGroups:
+  pySources:
+    - 'src/**/*.py'
+    - 'tests/**/*.py'
+    - 'pyproject.toml'
+    - 'uv.lock'
+    - '.python-version'
+    - 'mise.toml'
+    - 'mise.lock'
+  configs:
+    - 'vyos/gw01/config.boot.tmpl'
+    - 'vyos/gw01/assets/**/*'
+
+workspace:
+  inheritedTasks:
+    include: []
+
+tasks:
+  lock:
+    command: 'uv lock --check'
+    inputs:
+      - 'pyproject.toml'
+      - 'uv.lock'
+    options:
+      cache: false
+
+  format:
+    script: 'uv run --locked ruff format --check . && uv run --locked ruff check --select I .'
+    inputs:
+      - '@group(pySources)'
+    options:
+      cache: false
+
+  lint:
+    command: 'uv run --locked ruff check .'
+    inputs:
+      - '@group(pySources)'
+    options:
+      cache: false
+
+  typecheck:
+    command: 'uv run --locked mypy'
+    inputs:
+      - '@group(pySources)'
+    options:
+      cache: false
+
+  test:
+    command: 'uv run --locked pytest'
+    inputs:
+      - '@group(pySources)'
+    options:
+      cache: false
+
+  vyos-validate:
+    command: 'uv run --locked python -m networking_vyos validate'
+    inputs:
+      - '@group(pySources)'
+      - '@group(configs)'
+    options:
+      cache: false
+      runInCI: true
+
+  vyos-facts:
+    command: 'uv run --locked python -m networking_vyos facts'
+    inputs:
+      - '@group(pySources)'
+    options:
+      cache: false
+      runInCI: false
+
+  vyos-sync:
+    command: 'uv run --locked python -m networking_vyos sync'
+    inputs:
+      - '@group(pySources)'
+      - '@group(configs)'
+    options:
+      cache: false
+      runInCI: false
+
+  check:
+    deps:
+      - 'network:lock'
+      - 'network:format'
+      - 'network:lint'
+      - 'network:typecheck'
+      - 'network:test'
+      - 'network:vyos-validate'
+    inputs: []
+    options:
+      cache: false
+      runInCI: true

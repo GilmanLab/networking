@@ -1,0 +1,823 @@
+/* gw01 — Protectli VP6630 lab gateway
+ *
+ * Source for routing, firewall, DHCP, DNS forwarding, Tailscale, and
+ * source NAT. Addresses and port roles come from the lab address plan.
+ *
+ * Interface mapping:
+ *   eth0  SFP+ 1  routed transit 10.0.0.2/30 to rtr01
+ *   eth1  SFP+ 2  802.1Q trunk VLANs 10,40 to sw-core01
+ *   eth2  Port 2  802.1Q trunk VLANs 10,70 to sw-mgmt01
+ *   eth3  Port 1  untagged VLAN 40 to sandbox01
+ *   eth4  Port 3  untagged VLAN 70 to pikvm01
+ *   eth5  Port 4  untagged VLAN 70 to kvm01
+ *
+ * Bridges carry each client VLAN across every port that shares it:
+ *   br10 = eth1.10 + eth2.10
+ *   br40 = eth1.40 + eth3
+ *   br70 = eth2.70 + eth4 + eth5
+ *
+ * The renderer replaces the SSH public-key sentinel in memory and appends
+ * component metadata captured from the live /config/config.boot. The
+ * password hash is applied separately through pyinfra-vyos so a load
+ * failure cannot dump it with the complete candidate configuration.
+ */
+firewall {
+    group {
+        network-group HOME_NETWORKS {
+            network 192.168.1.0/24
+            network 192.168.2.0/24
+        }
+        network-group TRANSIT_LINK {
+            network 10.0.0.0/30
+        }
+        network-group TAILSCALE_NETWORK {
+            network 100.64.0.0/10
+        }
+        network-group LAB_NETWORKS {
+            network 10.10.0.0/16
+        }
+        network-group LAB_MGMT {
+            network 10.10.10.0/24
+        }
+        network-group LAB_SANDBOX {
+            network 10.10.40.0/24
+        }
+        network-group LAB_OOB {
+            network 10.10.70.0/24
+        }
+        network-group RFC1918 {
+            network 10.0.0.0/8
+            network 172.16.0.0/12
+            network 192.168.0.0/16
+        }
+    }
+    ipv4 {
+        forward {
+            filter {
+                default-action drop
+                default-log
+                rule 10 {
+                    action accept
+                    description "Allow established/related"
+                    state established
+                    state related
+                }
+                rule 20 {
+                    action drop
+                    description "Drop invalid"
+                    state invalid
+                }
+                rule 100 {
+                    action jump
+                    description "Transit inbound"
+                    inbound-interface {
+                        name eth0
+                    }
+                    jump-target WAN_FORWARD
+                }
+                rule 110 {
+                    action jump
+                    description "Management inbound"
+                    inbound-interface {
+                        name br10
+                    }
+                    jump-target MGMT_FORWARD
+                }
+                rule 120 {
+                    action jump
+                    description "Sandbox inbound"
+                    inbound-interface {
+                        name br40
+                    }
+                    jump-target SANDBOX_FORWARD
+                }
+                rule 130 {
+                    action jump
+                    description "OOB inbound"
+                    inbound-interface {
+                        name br70
+                    }
+                    jump-target OOB_FORWARD
+                }
+                rule 140 {
+                    action jump
+                    description "Tailscale inbound"
+                    jump-target TAILSCALE_FORWARD
+                    source {
+                        group {
+                            network-group TAILSCALE_NETWORK
+                        }
+                    }
+                }
+            }
+        }
+        input {
+            filter {
+                default-action drop
+                default-log
+                rule 10 {
+                    action accept
+                    description "Allow established/related"
+                    state established
+                    state related
+                }
+                rule 20 {
+                    action drop
+                    description "Drop invalid"
+                    state invalid
+                }
+                rule 100 {
+                    action jump
+                    description "Transit to local"
+                    inbound-interface {
+                        name eth0
+                    }
+                    jump-target WAN_LOCAL
+                }
+                rule 110 {
+                    action jump
+                    description "Management to local"
+                    inbound-interface {
+                        name br10
+                    }
+                    jump-target MGMT_LOCAL
+                }
+                rule 120 {
+                    action jump
+                    description "Sandbox to local"
+                    inbound-interface {
+                        name br40
+                    }
+                    jump-target SANDBOX_LOCAL
+                }
+                rule 130 {
+                    action jump
+                    description "OOB to local"
+                    inbound-interface {
+                        name br70
+                    }
+                    jump-target OOB_LOCAL
+                }
+                rule 140 {
+                    action jump
+                    description "Tailscale to local"
+                    jump-target TAILSCALE_LOCAL
+                    source {
+                        group {
+                            network-group TAILSCALE_NETWORK
+                        }
+                    }
+                }
+            }
+        }
+        name MGMT_FORWARD {
+            default-action drop
+            default-log
+            description "Forward from management"
+            rule 10 {
+                action drop
+                description "Block new connections to home"
+                destination {
+                    group {
+                        network-group HOME_NETWORKS
+                    }
+                }
+                state new
+            }
+            rule 20 {
+                action accept
+                description "Allow management to OOB"
+                destination {
+                    group {
+                        network-group LAB_OOB
+                    }
+                }
+            }
+            rule 30 {
+                action accept
+                description "Allow management to sandbox"
+                destination {
+                    group {
+                        network-group LAB_SANDBOX
+                    }
+                }
+            }
+            rule 40 {
+                action accept
+                description "Allow internet egress"
+                destination {
+                    group {
+                        network-group !RFC1918
+                    }
+                }
+            }
+        }
+        name MGMT_LOCAL {
+            default-action drop
+            default-log
+            description "Local services from management"
+            rule 10 {
+                action accept
+                description "Allow ICMP"
+                protocol icmp
+            }
+            rule 20 {
+                action accept
+                description "Allow SSH"
+                destination {
+                    port 22
+                }
+                protocol tcp
+            }
+            rule 30 {
+                action accept
+                description "Allow DNS UDP"
+                destination {
+                    port 53
+                }
+                protocol udp
+            }
+            rule 40 {
+                action accept
+                description "Allow DNS TCP"
+                destination {
+                    port 53
+                }
+                protocol tcp
+            }
+            rule 50 {
+                action accept
+                description "Allow DHCP"
+                destination {
+                    port 67
+                }
+                protocol udp
+            }
+        }
+        name OOB_FORWARD {
+            default-action drop
+            default-log
+            description "Forward from OOB"
+        }
+        name OOB_LOCAL {
+            default-action drop
+            default-log
+            description "Local services from OOB"
+            rule 10 {
+                action accept
+                description "Allow ICMP"
+                protocol icmp
+            }
+            rule 20 {
+                action accept
+                description "Allow SSH"
+                destination {
+                    port 22
+                }
+                protocol tcp
+            }
+            rule 30 {
+                action accept
+                description "Allow DNS UDP"
+                destination {
+                    port 53
+                }
+                protocol udp
+            }
+            rule 40 {
+                action accept
+                description "Allow DNS TCP"
+                destination {
+                    port 53
+                }
+                protocol tcp
+            }
+            rule 50 {
+                action accept
+                description "Allow DHCP"
+                destination {
+                    port 67
+                }
+                protocol udp
+            }
+        }
+        name SANDBOX_FORWARD {
+            default-action drop
+            default-log
+            description "Forward from sandbox"
+            rule 10 {
+                action drop
+                description "Block sandbox to management"
+                destination {
+                    group {
+                        network-group LAB_MGMT
+                    }
+                }
+            }
+            rule 20 {
+                action drop
+                description "Block sandbox to OOB"
+                destination {
+                    group {
+                        network-group LAB_OOB
+                    }
+                }
+            }
+            rule 30 {
+                action drop
+                description "Block sandbox to home"
+                destination {
+                    group {
+                        network-group HOME_NETWORKS
+                    }
+                }
+            }
+            rule 40 {
+                action accept
+                description "Allow internet egress"
+                destination {
+                    group {
+                        network-group !RFC1918
+                    }
+                }
+            }
+        }
+        name SANDBOX_LOCAL {
+            default-action drop
+            default-log
+            description "Local services from sandbox"
+            rule 10 {
+                action accept
+                description "Allow ICMP"
+                protocol icmp
+            }
+            rule 20 {
+                action accept
+                description "Allow DNS UDP"
+                destination {
+                    port 53
+                }
+                protocol udp
+            }
+            rule 30 {
+                action accept
+                description "Allow DNS TCP"
+                destination {
+                    port 53
+                }
+                protocol tcp
+            }
+            rule 40 {
+                action accept
+                description "Allow DHCP"
+                destination {
+                    port 67
+                }
+                protocol udp
+            }
+        }
+        name TAILSCALE_FORWARD {
+            default-action drop
+            default-log
+            description "Forward from Tailscale"
+            rule 10 {
+                action accept
+                description "Allow Tailscale to lab"
+                destination {
+                    group {
+                        network-group LAB_NETWORKS
+                    }
+                }
+            }
+            rule 20 {
+                action accept
+                description "Allow Tailscale to home"
+                destination {
+                    group {
+                        network-group HOME_NETWORKS
+                    }
+                }
+            }
+        }
+        name TAILSCALE_LOCAL {
+            default-action drop
+            default-log
+            description "Local services from Tailscale"
+            rule 10 {
+                action accept
+                description "Allow ICMP"
+                protocol icmp
+            }
+            rule 20 {
+                action accept
+                description "Allow SSH"
+                destination {
+                    port 22
+                }
+                protocol tcp
+            }
+            rule 30 {
+                action accept
+                description "Allow DNS UDP"
+                destination {
+                    port 53
+                }
+                protocol udp
+            }
+            rule 40 {
+                action accept
+                description "Allow DNS TCP"
+                destination {
+                    port 53
+                }
+                protocol tcp
+            }
+        }
+        name WAN_FORWARD {
+            default-action drop
+            default-log
+            description "Forward from transit"
+            rule 10 {
+                action accept
+                description "Allow home to lab"
+                source {
+                    group {
+                        network-group HOME_NETWORKS
+                    }
+                }
+            }
+        }
+        name WAN_LOCAL {
+            default-action drop
+            default-log
+            description "Local services from transit"
+            rule 10 {
+                action accept
+                description "Allow ICMP from home"
+                protocol icmp
+                source {
+                    group {
+                        network-group HOME_NETWORKS
+                    }
+                }
+            }
+            rule 20 {
+                action accept
+                description "Allow SSH from home"
+                destination {
+                    port 22
+                }
+                protocol tcp
+                source {
+                    group {
+                        network-group HOME_NETWORKS
+                    }
+                }
+            }
+            rule 30 {
+                action accept
+                description "Allow DNS UDP from home"
+                destination {
+                    port 53
+                }
+                protocol udp
+                source {
+                    group {
+                        network-group HOME_NETWORKS
+                    }
+                }
+            }
+            rule 40 {
+                action accept
+                description "Allow DNS TCP from home"
+                destination {
+                    port 53
+                }
+                protocol tcp
+                source {
+                    group {
+                        network-group HOME_NETWORKS
+                    }
+                }
+            }
+        }
+    }
+}
+container {
+    name coredns-glab-lol {
+        allow-host-networks
+        arguments "-conf /etc/coredns/Corefile"
+        capability net-bind-service
+        description "CoreDNS authoritative and recursive service for gw01"
+        image docker.io/coredns/coredns:1.13.1
+        memory 128
+        restart always
+        volume conf {
+            destination /etc/coredns/Corefile
+            source /config/containers/coredns/Corefile
+        }
+        volume zones {
+            destination /zones
+            source /config/containers/coredns/zones
+        }
+    }
+    name tailscale {
+        allow-host-networks
+        capability net-admin
+        capability net-raw
+        description "Tailscale subnet router for home and lab networks"
+        device tun {
+            destination /dev/net/tun
+            source /dev/net/tun
+        }
+        environment TS_AUTH_ONCE {
+            value "true"
+        }
+        environment TS_EXTRA_ARGS {
+            value "--advertise-tags=tag:subnet-router --accept-routes --snat-subnet-routes=false"
+        }
+        environment TS_HOSTNAME {
+            value glab-vyos-subnet-router
+        }
+        environment TS_ROUTES {
+            value "10.10.0.0/16,192.168.1.0/24,192.168.2.0/24"
+        }
+        environment TS_STATE_DIR {
+            value /var/lib/tailscale
+        }
+        environment TS_USERSPACE {
+            value "false"
+        }
+        image docker.io/tailscale/tailscale:v1.96.5
+        memory 256
+        restart always
+        volume state {
+            destination /var/lib/tailscale
+            source /config/containers/tailscale/state
+        }
+    }
+}
+interfaces {
+    bridge br10 {
+        address 10.10.10.1/24
+        address 10.10.10.54/32
+        description "LAB_MGMT - Management"
+        member {
+            interface eth1.10 {
+            }
+            interface eth2.10 {
+            }
+        }
+    }
+    bridge br40 {
+        address 10.10.40.1/24
+        description "LAB_SANDBOX - Sandbox/workload"
+        member {
+            interface eth1.40 {
+            }
+            interface eth3 {
+            }
+        }
+    }
+    bridge br70 {
+        address 10.10.70.1/24
+        description "LAB_OOB - OOB"
+        member {
+            interface eth2.70 {
+            }
+            interface eth4 {
+            }
+            interface eth5 {
+            }
+        }
+    }
+    ethernet eth0 {
+        address 10.0.0.2/30
+        description "WAN - Transit to rtr01"
+        offload {
+            gro
+            gso
+            sg
+            tso
+        }
+    }
+    ethernet eth1 {
+        description "TRUNK - sw-core01 VLANs 10,40"
+        offload {
+            gro
+            gso
+            sg
+            tso
+        }
+        vif 10 {
+            description "LAB_MGMT - Bridge member (br10)"
+        }
+        vif 40 {
+            description "LAB_SANDBOX - Bridge member (br40)"
+        }
+    }
+    ethernet eth2 {
+        description "TRUNK - sw-mgmt01 VLANs 10,70"
+        offload {
+            gro
+            gso
+            sg
+            tso
+        }
+        vif 10 {
+            description "LAB_MGMT - Bridge member (br10)"
+        }
+        vif 70 {
+            description "LAB_OOB - Bridge member (br70)"
+        }
+    }
+    ethernet eth3 {
+        description "LAN - sandbox01 untagged VLAN 40"
+        offload {
+            gro
+            gso
+            sg
+            tso
+        }
+    }
+    ethernet eth4 {
+        description "LAN - pikvm01 untagged VLAN 70"
+        offload {
+            gro
+            gso
+            sg
+            tso
+        }
+    }
+    ethernet eth5 {
+        description "LAN - kvm01 untagged VLAN 70"
+        offload {
+            gro
+            gso
+            sg
+            tso
+        }
+    }
+}
+nat {
+    source {
+        rule 100 {
+            outbound-interface {
+                name eth0
+            }
+            source {
+                address 10.10.0.0/16
+            }
+            translation {
+                address masquerade
+            }
+        }
+    }
+}
+protocols {
+    static {
+        route 0.0.0.0/0 {
+            description "Default route via rtr01"
+            next-hop 10.0.0.1 {
+            }
+        }
+        route 192.168.1.0/24 {
+            description "Home network via rtr01"
+            next-hop 10.0.0.1 {
+            }
+        }
+        route 192.168.2.0/24 {
+            description "Home network via rtr01"
+            next-hop 10.0.0.1 {
+            }
+        }
+    }
+}
+service {
+    dhcp-server {
+        listen-address 10.10.10.1
+        listen-address 10.10.40.1
+        listen-address 10.10.70.1
+        shared-network-name LAB_MGMT {
+            subnet 10.10.10.0/24 {
+                lease 86400
+                option {
+                    default-router 10.10.10.1
+                    name-server 10.10.10.1
+                }
+                range 0 {
+                    start 10.10.10.200
+                    stop 10.10.10.250
+                }
+                static-mapping sw-core01 {
+                    ip-address 10.10.10.2
+                    mac 04:f4:1c:13:86:87
+                }
+                subnet-id 1
+            }
+        }
+        shared-network-name LAB_OOB {
+            subnet 10.10.70.0/24 {
+                lease 86400
+                option {
+                    default-router 10.10.70.1
+                    name-server 10.10.70.1
+                }
+                range 0 {
+                    start 10.10.70.200
+                    stop 10.10.70.250
+                }
+                static-mapping lab01-amt {
+                    ip-address 10.10.70.11
+                    mac 38:05:25:35:48:86
+                }
+                static-mapping lab02-amt {
+                    ip-address 10.10.70.12
+                    mac 38:05:25:35:4b:04
+                }
+                static-mapping lab03-amt {
+                    ip-address 10.10.70.13
+                    mac 38:05:25:35:43:f0
+                }
+                static-mapping pikvm01 {
+                    ip-address 10.10.70.20
+                    mac 88:a2:9e:42:4a:7f
+                }
+                static-mapping kvm01 {
+                    ip-address 10.10.70.21
+                    mac dc:32:62:b0:61:07
+                }
+                subnet-id 2
+            }
+        }
+        shared-network-name LAB_SANDBOX {
+            subnet 10.10.40.0/24 {
+                lease 86400
+                option {
+                    default-router 10.10.40.1
+                    name-server 10.10.40.1
+                }
+                range 0 {
+                    start 10.10.40.200
+                    stop 10.10.40.250
+                }
+                static-mapping sandbox01 {
+                    ip-address 10.10.40.10
+                    mac 38:05:25:34:25:d0
+                }
+                subnet-id 3
+            }
+        }
+    }
+    ntp {
+        allow-client {
+            address 0.0.0.0/0
+            address ::/0
+        }
+        server time.cloudflare.com {
+        }
+    }
+    ssh {
+        disable-password-authentication
+        port 22
+    }
+}
+system {
+    config-management {
+        commit-revisions 200
+    }
+    conntrack {
+        modules {
+            ftp
+            h323
+            nfs
+            pptp
+            sip
+            sqlnet
+            tftp
+        }
+    }
+    domain-name glab.lol
+    host-name gw01
+    login {
+        user vyos {
+            authentication {
+                public-keys vyos-gateway {
+                    key @@VYOS_PUBLIC_KEY@@
+                    type ssh-ed25519
+                }
+            }
+        }
+    }
+    name-server 1.1.1.1
+    name-server 8.8.8.8
+    task-scheduler {
+        task dns-mirror-fetch-glab-lol {
+            executable {
+                path /config/scripts/dns-mirror-fetch-glab-lol.sh
+            }
+            interval 1m
+        }
+    }
+    time-zone America/Los_Angeles
+}
