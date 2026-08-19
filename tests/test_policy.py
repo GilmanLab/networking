@@ -18,6 +18,19 @@ def test_tracked_template_satisfies_source_policy() -> None:
     validate_assets_present()
 
 
+def test_rtr01_gateway_health_probe_is_allowed() -> None:
+    from networking_vyos.render import load_template
+
+    assert """rule 5 {
+                action accept
+                description "Allow rtr01 gateway health checks"
+                protocol icmp
+                source {
+                    address 10.0.0.1
+                }
+            }""" in load_template()
+
+
 def test_invented_footer_is_rejected() -> None:
     with pytest.raises(ToolError, match="must not invent"):
         validate_template(VALID_TEMPLATE + '\n// vyos-config-version: "guessed@1"\n')
