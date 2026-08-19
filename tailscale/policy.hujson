@@ -12,6 +12,7 @@
 	// Who may assign each tag to a device.
 	"tagOwners": {
 		"tag:subnet-router": ["autogroup:admin"],
+		"tag:sandbox":       ["autogroup:admin"],
 	},
 
 	// Routes a subnet router may advertise without manual approval. These are
@@ -50,6 +51,22 @@
 			"src":    ["autogroup:member"],
 			"dst":    ["autogroup:self"],
 			"users":  ["autogroup:nonroot", "root"],
+		},
+
+		// Tailscale SSH to sandbox hosts as josh or sandbox.
+		{
+			"action": "accept",
+			"src":    ["autogroup:member"],
+			"dst":    ["tag:sandbox"],
+			"users":  ["josh", "sandbox"],
+		},
+
+		// Tailscale SSH to sandbox hosts as root, with periodic reauthentication.
+		{
+			"action": "check",
+			"src":    ["autogroup:member"],
+			"dst":    ["tag:sandbox"],
+			"users":  ["root"],
 		},
 	],
 }
