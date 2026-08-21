@@ -4,11 +4,12 @@ stack: 'backend'
 tags:
   - 'network'
   - 'vyos'
+  - 'routeros'
   - 'uv'
 
 project:
   title: 'Lab2 network'
-  description: 'Static validation and operator tooling for the lab2 gw01 VyOS gateway.'
+  description: 'Static validation and operator tooling for the lab2 network devices.'
   owner: 'GilmanLab'
   maintainers:
     - 'josh'
@@ -28,6 +29,9 @@ fileGroups:
   configs:
     - 'vyos/gw01/config.boot.tmpl'
     - 'vyos/gw01/assets/**/*'
+  routeros:
+    - 'routeros/sw-core01/**/*.tf'
+    - 'routeros/sw-core01/Justfile'
 
 workspace:
   inheritedTasks:
@@ -96,6 +100,30 @@ tasks:
       cache: false
       runInCI: false
 
+  routeros-check:
+    command: 'just -f routeros/sw-core01/Justfile check'
+    inputs:
+      - '@group(routeros)'
+    options:
+      cache: false
+      runInCI: true
+
+  routeros-plan:
+    command: 'just -f routeros/sw-core01/Justfile plan'
+    inputs:
+      - '@group(routeros)'
+    options:
+      cache: false
+      runInCI: false
+
+  routeros-apply:
+    command: 'just -f routeros/sw-core01/Justfile apply'
+    inputs:
+      - '@group(routeros)'
+    options:
+      cache: false
+      runInCI: false
+
   check:
     deps:
       - 'network:lock'
@@ -104,6 +132,7 @@ tasks:
       - 'network:typecheck'
       - 'network:test'
       - 'network:vyos-validate'
+      - 'network:routeros-check'
     inputs: []
     options:
       cache: false

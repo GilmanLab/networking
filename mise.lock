@@ -24,6 +24,26 @@ checksum = "sha256:4c9f52262a14da336e4a42ed24992d12d0c956acde87619e4611d321dffa6
 url = "https://github.com/astral-sh/uv/releases/download/0.12.3/uv-x86_64-apple-darwin.tar.gz"
 provenance = "github-attestations"
 
+[[tools."aqua:casey/just"]]
+version = "1.58.0"
+backend = "aqua:casey/just"
+
+[tools."aqua:casey/just"."platforms.linux-arm64"]
+checksum = "sha256:748237128c4c40cbdabc65e841d05ceba13cc23a91eaba395495894c1d9764df"
+url = "https://github.com/casey/just/releases/download/1.58.0/just-1.58.0-aarch64-unknown-linux-musl.tar.gz"
+
+[tools."aqua:casey/just"."platforms.linux-x64"]
+checksum = "sha256:4a5cc2f53e6f0f8c59092a6cc38291eb729d46a7dd95d3ae582008881b84931d"
+url = "https://github.com/casey/just/releases/download/1.58.0/just-1.58.0-x86_64-unknown-linux-musl.tar.gz"
+
+[tools."aqua:casey/just"."platforms.macos-arm64"]
+checksum = "sha256:50ae3e996c974a0bf32ea7d10f495070df33f1b43e0616b2769e3d4821ed8f48"
+url = "https://github.com/casey/just/releases/download/1.58.0/just-1.58.0-aarch64-apple-darwin.tar.gz"
+
+[tools."aqua:casey/just"."platforms.macos-x64"]
+checksum = "sha256:9a09cfef66aaa79da58203970103a0684307716caaabd3e9844cacc4dc0f4023"
+url = "https://github.com/casey/just/releases/download/1.58.0/just-1.58.0-x86_64-apple-darwin.tar.gz"
+
 [[tools."aqua:moonrepo/moon"]]
 version = "2.4.6"
 backend = "aqua:moonrepo/moon"
@@ -39,6 +59,26 @@ url = "https://github.com/moonrepo/moon/releases/download/v2.4.6/moon_cli-x86_64
 [tools."aqua:moonrepo/moon"."platforms.macos-arm64"]
 checksum = "sha256:5bc863dd2c5e18c11e35a035318e6a3b5aaa7636f6c16ec6bd6366baf031e596"
 url = "https://github.com/moonrepo/moon/releases/download/v2.4.6/moon_cli-aarch64-apple-darwin.tar.xz"
+
+[[tools."aqua:opentofu/opentofu"]]
+version = "1.12.5"
+backend = "aqua:opentofu/opentofu"
+
+[tools."aqua:opentofu/opentofu"."platforms.linux-arm64"]
+checksum = "sha256:e67e9da2b1ddf5050ebee62a584cb826eafe1dfd3827d7ec20899ac62791ed1a"
+url = "https://github.com/opentofu/opentofu/releases/download/v1.12.5/tofu_1.12.5_linux_arm64.tar.gz"
+
+[tools."aqua:opentofu/opentofu"."platforms.linux-x64"]
+checksum = "sha256:a6894d45ae7a17ce83189cce8fe04b5a65f68cefceb62455b5a6a89fa53ab38f"
+url = "https://github.com/opentofu/opentofu/releases/download/v1.12.5/tofu_1.12.5_linux_amd64.tar.gz"
+
+[tools."aqua:opentofu/opentofu"."platforms.macos-arm64"]
+checksum = "sha256:2ae38150a667f5c0bd57b318d18ad8091d08f93fcca40345f3d88998661de5a9"
+url = "https://github.com/opentofu/opentofu/releases/download/v1.12.5/tofu_1.12.5_darwin_arm64.tar.gz"
+
+[tools."aqua:opentofu/opentofu"."platforms.macos-x64"]
+checksum = "sha256:1012d8f3d4567bcbcd1f2c7d766feca39a30bced32fb8be47e1887fbbee2456d"
+url = "https://github.com/opentofu/opentofu/releases/download/v1.12.5/tofu_1.12.5_darwin_amd64.tar.gz"
 
 [[tools.python]]
 version = "3.14.7"
