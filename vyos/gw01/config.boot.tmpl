@@ -253,6 +253,14 @@ firewall {
                 }
                 protocol udp
             }
+            rule 60 {
+                action accept
+                description "Allow NTP"
+                destination {
+                    port 123
+                }
+                protocol udp
+            }
         }
         name OOB_FORWARD {
             default-action drop
@@ -297,6 +305,14 @@ firewall {
                 description "Allow DHCP"
                 destination {
                     port 67
+                }
+                protocol udp
+            }
+            rule 60 {
+                action accept
+                description "Allow NTP"
+                destination {
+                    port 123
                 }
                 protocol udp
             }
