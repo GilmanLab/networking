@@ -5,11 +5,12 @@ secrets_file := "network/sw-core01/terraform.sops.yaml"
 default:
     @just --list
 
-# Offline validation: no backend or credentials required.
+# Offline validation: no backend or credentials required. Uses a dedicated
+# TF_DATA_DIR so an operator-initialized .terraform/ (S3 backend) never leaks in.
 check:
     tofu fmt -check -recursive
-    tofu init -backend=false -input=false
-    ROS_USERNAME="${ROS_USERNAME:-validate}" ROS_PASSWORD="${ROS_PASSWORD:-validate}" tofu validate
+    TF_DATA_DIR=.terraform-check tofu init -backend=false -input=false
+    TF_DATA_DIR=.terraform-check ROS_USERNAME="${ROS_USERNAME:-validate}" ROS_PASSWORD="${ROS_PASSWORD:-validate}" tofu validate
 
 # Format Tofu files in place.
 fmt:
