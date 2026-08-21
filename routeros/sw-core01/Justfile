@@ -1,0 +1,48 @@
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+secrets_file := "network/sw-core01/terraform.sops.yaml"
+
+default:
+    @just --list
+
+# Offline validation: no backend or credentials required.
+check:
+    tofu fmt -check -recursive
+    tofu init -backend=false -input=false
+    ROS_USERNAME="${ROS_USERNAME:-validate}" ROS_PASSWORD="${ROS_PASSWORD:-validate}" tofu validate
+
+# Format Tofu files in place.
+fmt:
+    tofu fmt -recursive
+
+# Initialize the working directory against the lab S3 backend.
+init:
+    test -n "${GLAB_AWS_STATE_BUCKET:-}" || { echo "Set GLAB_AWS_STATE_BUCKET to the pre-created S3 backend bucket." >&2; exit 1; }
+    AWS_PROFILE="${AWS_PROFILE:-lab-admin}" tofu init -reconfigure -backend-config="bucket=${GLAB_AWS_STATE_BUCKET}"
+
+# Render and save a plan to `tfplan`.
+plan:
+    test -n "${GLAB_SECRETS_DIR:-}" || { echo "Set GLAB_SECRETS_DIR to the GilmanLab/secrets checkout." >&2; exit 1; }; \
+    test -n "${GLAB_AWS_STATE_BUCKET:-}" || { echo "Set GLAB_AWS_STATE_BUCKET to the pre-created S3 backend bucket." >&2; exit 1; }; \
+    export AWS_PROFILE="${AWS_PROFILE:-lab-admin}"; \
+    export ROS_USERNAME="$(sops -d --extract '["username"]' "$GLAB_SECRETS_DIR/{{secrets_file}}")"; \
+    export ROS_PASSWORD="$(sops -d --extract '["password"]' "$GLAB_SECRETS_DIR/{{secrets_file}}")"; \
+    tofu plan -out=tfplan
+
+# Apply the saved plan produced by `just plan`.
+apply:
+    test -n "${GLAB_SECRETS_DIR:-}" || { echo "Set GLAB_SECRETS_DIR to the GilmanLab/secrets checkout." >&2; exit 1; }; \
+    test -n "${GLAB_AWS_STATE_BUCKET:-}" || { echo "Set GLAB_AWS_STATE_BUCKET to the pre-created S3 backend bucket." >&2; exit 1; }; \
+    export AWS_PROFILE="${AWS_PROFILE:-lab-admin}"; \
+    export ROS_USERNAME="$(sops -d --extract '["username"]' "$GLAB_SECRETS_DIR/{{secrets_file}}")"; \
+    export ROS_PASSWORD="$(sops -d --extract '["password"]' "$GLAB_SECRETS_DIR/{{secrets_file}}")"; \
+    tofu apply tfplan
+
+# Export live config from the switch before any apply.
+snapshot:
+    ssh admin@10.10.10.2 '/export show-sensitive file=pre-apply'
+    scp admin@10.10.10.2:pre-apply.rsc .
+
+# Show outputs from the last applied state.
+output:
+    AWS_PROFILE="${AWS_PROFILE:-lab-admin}" tofu output
