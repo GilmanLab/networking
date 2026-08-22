@@ -11,7 +11,7 @@ resource "routeros_interface_bonding" "bond_lab01" {
   slaves               = [routeros_interface_ethernet.sfp_sfpplus1.name, routeros_interface_ethernet.sfp_sfpplus2.name]
   mode                 = "802.3ad"
   transmit_hash_policy = "layer-3-and-4"
-  lacp_rate            = "1sec"
+  lacp_rate            = "30secs"
   comment              = "lab01 SFP pair (PHY-012 + PHY-013)"
 }
 
@@ -20,7 +20,7 @@ resource "routeros_interface_bonding" "bond_lab02" {
   slaves               = [routeros_interface_ethernet.sfp_sfpplus3.name, routeros_interface_ethernet.sfp_sfpplus4.name]
   mode                 = "802.3ad"
   transmit_hash_policy = "layer-3-and-4"
-  lacp_rate            = "1sec"
+  lacp_rate            = "30secs"
   comment              = "lab02 SFP pair (PHY-014 + PHY-015)"
 }
 
@@ -29,6 +29,6 @@ resource "routeros_interface_bonding" "bond_lab03" {
   slaves               = [routeros_interface_ethernet.sfp_sfpplus5.name, routeros_interface_ethernet.sfp_sfpplus6.name]
   mode                 = "802.3ad"
   transmit_hash_policy = "layer-3-and-4"
-  lacp_rate            = "1sec"
+  lacp_rate            = "30secs"
   comment              = "lab03 SFP pair (PHY-016 + PHY-017)"
 }
