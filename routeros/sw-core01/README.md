@@ -55,6 +55,50 @@ CI never decrypts secrets and never contacts the device.
 Run `just plan` before every change, after any RouterOS upgrade, and ad hoc.
 There is no CI drift job.
 
+## First apply of lab LACP + VLAN 30
+
+RouterOS rejects enslaving an interface that is still a bridge port.
+terraform-routeros v1.99.1 bonding Create is a plain REST POST; it does
+not unslave first. `depends_on` cannot name the six `sfp-sfpplus1`–`6`
+bridge-port resources this change deletes, so OpenTofu will not destroy
+those orphans before creating the bonds.
+
+An untargeted plan of this change is **7 to add, 6 to destroy**. Do not
+apply that mixed plan: RouterOS will reject the bond creates while the
+old port rows still exist.
+
+1. Snapshot, then destroy only the six per-port rows (they are already
+   absent from this configuration and remain only in state):
+
+   ```sh
+   just snapshot
+   tofu apply \
+     -target=routeros_interface_bridge_port.sfp_sfpplus1 \
+     -target=routeros_interface_bridge_port.sfp_sfpplus2 \
+     -target=routeros_interface_bridge_port.sfp_sfpplus3 \
+     -target=routeros_interface_bridge_port.sfp_sfpplus4 \
+     -target=routeros_interface_bridge_port.sfp_sfpplus5 \
+     -target=routeros_interface_bridge_port.sfp_sfpplus6
+   ```
+
+   Expected plan: **6 to destroy**.
+
+2. Create the bonds, their bridge ports, and VLAN 30:
+
+   ```sh
+   just snapshot
+   just plan
+   just apply
+   ```
+
+   Expected plan: **7 to add** (3 bonds, 3 bond bridge ports, 1 VLAN 30
+   row). No changes to `bridge-lab`, port 8, VLAN 10, VLAN 40, or the
+   mgmt address/route.
+
+VLAN 30 is L2-only. It is tagged on `bond-lab01`–`03` and `sfp-sfpplus7`
+(nas01). It is not tagged on `bridge-lab` or the gw01 trunk
+(`sfp-sfpplus8`).
+
 ## Notes
 
 - Ethernet names stay at factory (`ether1`, `sfp-sfpplus1`–`8`). Roles and
