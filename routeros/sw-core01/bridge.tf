@@ -3,44 +3,23 @@ resource "routeros_interface_bridge" "lab" {
   vlan_filtering = true
 }
 
-resource "routeros_interface_bridge_port" "sfp_sfpplus1" {
+resource "routeros_interface_bridge_port" "bond_lab01" {
   bridge            = routeros_interface_bridge.lab.name
-  interface         = routeros_interface_ethernet.sfp_sfpplus1.name
+  interface         = routeros_interface_bonding.bond_lab01.name
   frame_types       = "admit-only-vlan-tagged"
   ingress_filtering = true
 }
 
-resource "routeros_interface_bridge_port" "sfp_sfpplus2" {
+resource "routeros_interface_bridge_port" "bond_lab02" {
   bridge            = routeros_interface_bridge.lab.name
-  interface         = routeros_interface_ethernet.sfp_sfpplus2.name
+  interface         = routeros_interface_bonding.bond_lab02.name
   frame_types       = "admit-only-vlan-tagged"
   ingress_filtering = true
 }
 
-resource "routeros_interface_bridge_port" "sfp_sfpplus3" {
+resource "routeros_interface_bridge_port" "bond_lab03" {
   bridge            = routeros_interface_bridge.lab.name
-  interface         = routeros_interface_ethernet.sfp_sfpplus3.name
-  frame_types       = "admit-only-vlan-tagged"
-  ingress_filtering = true
-}
-
-resource "routeros_interface_bridge_port" "sfp_sfpplus4" {
-  bridge            = routeros_interface_bridge.lab.name
-  interface         = routeros_interface_ethernet.sfp_sfpplus4.name
-  frame_types       = "admit-only-vlan-tagged"
-  ingress_filtering = true
-}
-
-resource "routeros_interface_bridge_port" "sfp_sfpplus5" {
-  bridge            = routeros_interface_bridge.lab.name
-  interface         = routeros_interface_ethernet.sfp_sfpplus5.name
-  frame_types       = "admit-only-vlan-tagged"
-  ingress_filtering = true
-}
-
-resource "routeros_interface_bridge_port" "sfp_sfpplus6" {
-  bridge            = routeros_interface_bridge.lab.name
-  interface         = routeros_interface_ethernet.sfp_sfpplus6.name
+  interface         = routeros_interface_bonding.bond_lab03.name
   frame_types       = "admit-only-vlan-tagged"
   ingress_filtering = true
 }
@@ -72,12 +51,9 @@ resource "routeros_interface_bridge_vlan" "vlan30" {
   bridge   = routeros_interface_bridge.lab.name
   vlan_ids = ["30"]
   tagged = [
-    routeros_interface_ethernet.sfp_sfpplus1.name,
-    routeros_interface_ethernet.sfp_sfpplus2.name,
-    routeros_interface_ethernet.sfp_sfpplus3.name,
-    routeros_interface_ethernet.sfp_sfpplus4.name,
-    routeros_interface_ethernet.sfp_sfpplus5.name,
-    routeros_interface_ethernet.sfp_sfpplus6.name,
+    routeros_interface_bonding.bond_lab01.name,
+    routeros_interface_bonding.bond_lab02.name,
+    routeros_interface_bonding.bond_lab03.name,
     routeros_interface_ethernet.sfp_sfpplus7.name,
   ]
 }
