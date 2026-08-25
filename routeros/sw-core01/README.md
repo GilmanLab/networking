@@ -55,7 +55,7 @@ CI never decrypts secrets and never contacts the device.
 Run `just plan` before every change, after any RouterOS upgrade, and ad hoc.
 There is no CI drift job.
 
-## First apply of lab LACP + VLAN 30
+## Applying the lab LACP bonds
 
 RouterOS rejects enslaving an interface that is still a bridge port.
 terraform-routeros v1.99.1 bonding Create is a plain REST POST; it does
@@ -63,9 +63,15 @@ not unslave first. `depends_on` cannot name the six `sfp-sfpplus1`–`6`
 bridge-port resources this change deletes, so OpenTofu will not destroy
 those orphans before creating the bonds.
 
-An untargeted plan of this change is **7 to add, 6 to destroy**. Do not
-apply that mixed plan: RouterOS will reject the bond creates while the
-old port rows still exist.
+An untargeted plan of this change mixes the port-row destroys with the
+bond creates. Do not apply that mixed plan: RouterOS will reject the
+bond creates while the old port rows still exist.
+
+History: the bonds first landed in #14, were replaced with plain tagged
+ports in #15 while ice Safe Mode (T48) starved the hosts of LACPDUs, and
+were restored once IncusOS `202608242359` shipped the ice DDP package.
+The 802.3ad exchange was verified live against lab03 before the restore
+(both slaves Collecting/Distributing, sub-second single-link failover).
 
 1. Snapshot, then destroy only the six per-port rows (they are already
    absent from this configuration and remain only in state):
@@ -83,7 +89,7 @@ old port rows still exist.
 
    Expected plan: **6 to destroy**.
 
-2. Create the bonds, their bridge ports, and VLAN 30:
+2. Create the bonds and their bridge ports, and update VLAN 30:
 
    ```sh
    just snapshot
@@ -91,9 +97,15 @@ old port rows still exist.
    just apply
    ```
 
-   Expected plan: **7 to add** (3 bonds, 3 bond bridge ports, 1 VLAN 30
-   row). No changes to `bridge-lab`, port 8, VLAN 10, VLAN 40, or the
-   mgmt address/route.
+   Expected plan: **6 to add, 1 to change** (3 bonds, 3 bond bridge
+   ports; the VLAN 30 row's tagged list moves from the six ports to the
+   three bonds). No changes to `bridge-lab`, port 8, VLAN 10, VLAN 40,
+   or the mgmt address/route.
+
+The lab fast datapath is down between step 1 and the host-side converge
+(`fleet` flips the host bonds to 802.3ad in the same rollout). Hosts
+still on active-backup do not partner with the LAGs, so converge
+`GilmanLab/fleet` `cluster/` immediately after step 2.
 
 VLAN 30 is L2-only. It is tagged on `bond-lab01`–`03` and `sfp-sfpplus7`
 (nas01). It is not tagged on `bridge-lab` or the gw01 trunk
