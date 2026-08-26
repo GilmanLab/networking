@@ -31,6 +31,20 @@ def test_rtr01_gateway_health_probe_is_allowed() -> None:
             }""" in load_template()
 
 
+def test_sandbox_to_management_is_allowed() -> None:
+    from networking_vyos.render import load_template
+
+    assert """rule 10 {
+                action accept
+                description "Allow sandbox to management"
+                destination {
+                    group {
+                        network-group LAB_MGMT
+                    }
+                }
+            }""" in load_template()
+
+
 def test_invented_footer_is_rejected() -> None:
     with pytest.raises(ToolError, match="must not invent"):
         validate_template(VALID_TEMPLATE + '\n// vyos-config-version: "guessed@1"\n')

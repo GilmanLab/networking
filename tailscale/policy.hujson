@@ -38,10 +38,40 @@
 			"dst":    ["tag:subnet-router:*"],
 		},
 
+
+		// Sandbox hosts reach only the Incus cluster API through the lab
+		// subnet route.
+		{
+			"action": "accept",
+			"src":    ["tag:sandbox"],
+			"proto":  "tcp",
+			"dst": [
+				"10.10.10.11:8443",
+				"10.10.10.12:8443",
+				"10.10.10.13:8443",
+				"10.10.10.14:8443",
+			],
+		},
 		// Routed hosts in the lab and home ranges reach each other in both
 		// directions.
 		{"action": "accept", "src": ["10.10.0.0/16"], "dst": ["172.16.0.0/16:*"]},
 		{"action": "accept", "src": ["172.16.0.0/16"], "dst": ["10.10.0.0/16:*"]},
+	],
+
+	"tests": [
+		{
+			"src": "tag:sandbox",
+			"accept": [
+				"10.10.10.11:8443",
+				"10.10.10.12:8443",
+				"10.10.10.13:8443",
+				"10.10.10.14:8443",
+			],
+			"deny": [
+				"10.10.10.10:8443",
+				"10.10.10.11:8444",
+			],
+		},
 	],
 
 	"ssh": [
