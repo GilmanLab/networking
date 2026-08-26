@@ -322,8 +322,8 @@ firewall {
             default-log
             description "Forward from sandbox"
             rule 10 {
-                action drop
-                description "Block sandbox to management"
+                action accept
+                description "Allow sandbox to management"
                 destination {
                     group {
                         network-group LAB_MGMT
