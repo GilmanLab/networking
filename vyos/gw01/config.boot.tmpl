@@ -696,6 +696,18 @@ nat {
                 address masquerade
             }
         }
+        rule 110 {
+            description "Masquerade Tailscale clients into the sandbox VLAN so tailnet-member hosts reply symmetrically"
+            outbound-interface {
+                name br40
+            }
+            source {
+                address 100.64.0.0/10
+            }
+            translation {
+                address masquerade
+            }
+        }
     }
 }
 protocols {
