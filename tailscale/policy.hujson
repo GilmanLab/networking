@@ -9,10 +9,13 @@
 // Reference:
 // https://github.com/GilmanLab/root/blob/master/docs/docs/reference/networking/tailscale-policy.md
 {
-	// Who may assign each tag to a device.
+	// Who may assign each tag to a device. tag:subnet-router also owns
+	// tag:sandbox so the OpenTofu-managed tailnet OAuth client (GilmanLab/aws
+	// network/tailscale, which holds tag:subnet-router) can mint federated
+	// identities that enroll ephemeral tag:sandbox CI nodes.
 	"tagOwners": {
 		"tag:subnet-router": ["autogroup:admin"],
-		"tag:sandbox":       ["autogroup:admin"],
+		"tag:sandbox":       ["autogroup:admin", "tag:subnet-router"],
 	},
 
 	// Routes a subnet router may advertise without manual approval. These are
