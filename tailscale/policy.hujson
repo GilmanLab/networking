@@ -16,6 +16,12 @@
 	"tagOwners": {
 		"tag:subnet-router": ["autogroup:admin"],
 		"tag:sandbox":       ["autogroup:admin", "tag:subnet-router"],
+		"tag:agentcompute":  ["autogroup:admin"],
+	},
+
+	// Studio remains a user-owned device; this alias is its tailnet IPv4.
+	"hosts": {
+		"studio-1": "100.122.142.76",
 	},
 
 	// Routes a subnet router may advertise without manual approval. These are
@@ -32,6 +38,11 @@
 	"acls": [
 		// Admins reach everything in the tailnet.
 		{"action": "accept", "src": ["autogroup:admin"], "dst": ["*:*"]},
+
+		// Native OpenSSH on Studio; sshd separately pins the service source.
+		{"action": "accept", "src": ["tag:agentcompute"], "proto": "tcp", "dst": ["studio-1:22"]},
+		// Member devices reach the bearer-authenticated MCP HTTPS endpoint.
+		{"action": "accept", "src": ["autogroup:member"], "proto": "tcp", "dst": ["tag:agentcompute:443"]},
 
 		// Subnet routers reach each other so routed traffic can transit
 		// between them.
@@ -63,6 +74,25 @@
 
 	"tests": [
 		{
+			"src": "tag:agentcompute",
+			"accept": ["studio-1:22"],
+			"deny": [
+				"studio-1:5900",
+				"tag:sandbox:22",
+				"tag:subnet-router:22",
+				"10.10.10.11:22",
+				"10.10.10.12:22",
+				"10.10.10.13:22",
+				"10.10.10.14:22",
+				"172.16.10.10:22",
+				"192.168.1.137:22",
+			],
+		},
+		{
+			"src": "joshuagilman@gmail.com",
+			"accept": ["tag:agentcompute:443"],
+		},
+		{
 			"src": "tag:sandbox",
 			"accept": [
 				"10.10.10.11:8443",
@@ -73,6 +103,7 @@
 			"deny": [
 				"10.10.10.10:8443",
 				"10.10.10.11:8444",
+				"studio-1:22",
 			],
 		},
 	],
