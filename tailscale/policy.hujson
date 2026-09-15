@@ -16,6 +16,14 @@
 	"tagOwners": {
 		"tag:subnet-router": ["autogroup:admin"],
 		"tag:sandbox":       ["autogroup:admin", "tag:subnet-router"],
+		// The Mac Studio hosting the agentcompute macOS backend. Tagging it
+		// takes it out of user ownership, which is what makes an SSH
+		// restriction on it expressible: `autogroup:self` cannot be narrowed
+		// per device.
+		"tag:macbackend": ["autogroup:admin"],
+		// The agentcompute server VM. It is the only node allowed to open
+		// tag:macbackend:22.
+		"tag:agentcompute": ["autogroup:admin"],
 	},
 
 	// Routes a subnet router may advertise without manual approval. These are
@@ -30,8 +38,49 @@
 	},
 
 	"acls": [
-		// Admins reach everything in the tailnet.
-		{"action": "accept", "src": ["autogroup:admin"], "dst": ["*:*"]},
+		// Admins reach everything in the tailnet except the Mac backend's SSH
+		// port, which is reserved for the agentcompute server below. ACL rules
+		// are allow-only, so "everything except one port" has to be written
+		// out: the wildcard destination is replaced by the same reach,
+		// enumerated.
+		{
+			"action": "accept",
+			"src":    ["autogroup:admin"],
+			"dst": [
+				"autogroup:internet:*",
+				"autogroup:self:*",
+				"tag:subnet-router:*",
+				"tag:sandbox:*",
+				"tag:agentcompute:*",
+				"tag:macbackend:0-21,23-65535",
+				"10.10.0.0/16:*",
+				"172.16.0.0/16:*",
+				"192.168.2.0/24:*",
+				// The Mac backend's LAN address (192.168.1.15) is the same
+				// host reached through the home subnet route, so the same
+				// carve-out applies there. Every other home address keeps full
+				// access, including SSH.
+				"192.168.1.0/24:0-21,23-65535",
+				"192.168.1.0/29:22",
+				"192.168.1.8/30:22",
+				"192.168.1.12/31:22",
+				"192.168.1.14/32:22",
+				"192.168.1.16/28:22",
+				"192.168.1.32/27:22",
+				"192.168.1.64/26:22",
+				"192.168.1.128/25:22",
+			],
+		},
+
+		// The agentcompute server reaches the Mac backend over SSH only. That
+		// session is itself forced to a single forwarded port by the host's
+		// sshd configuration and the key's forced command.
+		{
+			"action": "accept",
+			"src":    ["tag:agentcompute"],
+			"proto":  "tcp",
+			"dst":    ["tag:macbackend:22"],
+		},
 
 		// Subnet routers reach each other so routed traffic can transit
 		// between them.
@@ -74,6 +123,26 @@
 				"10.10.10.10:8443",
 				"10.10.10.11:8444",
 			],
+		},
+		// Only the agentcompute server may open the Mac backend's SSH port,
+		// and it may open nothing else there.
+		{
+			"src":    "tag:agentcompute",
+			"accept": ["tag:macbackend:22"],
+			"deny":   ["tag:macbackend:5900", "tag:macbackend:7777"],
+		},
+		// An admin device keeps every other path to that host, including the
+		// screen-sharing port and the rest of the home range's SSH, but not
+		// its SSH port by either name or routed address.
+		{
+			"src":    "joshuagilman@gmail.com",
+			"accept": ["tag:macbackend:5900", "192.168.1.20:22", "10.10.10.14:8443"],
+			"deny":   ["tag:macbackend:22", "192.168.1.15:22"],
+		},
+		// A sandbox host still reaches nothing on the Mac backend.
+		{
+			"src":  "tag:sandbox",
+			"deny": ["tag:macbackend:22", "tag:macbackend:7777"],
 		},
 	],
 
