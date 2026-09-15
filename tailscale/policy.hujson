@@ -56,19 +56,26 @@
 				"10.10.0.0/16:*",
 				"172.16.0.0/16:*",
 				"192.168.2.0/24:*",
-				// The Mac backend's LAN address (192.168.1.15) is the same
-				// host reached through the home subnet route, so the same
-				// carve-out applies there. Every other home address keeps full
-				// access, including SSH.
+				// The Mac backend's own LAN addresses are the same sshd reached
+				// through the home subnet route, so the carve-out applies there
+				// too: en0 192.168.1.10 and en1 192.168.1.137, measured on the
+				// host. Every other home address keeps full access, SSH
+				// included, which is why the range is written out.
 				"192.168.1.0/24:0-21,23-65535",
 				"192.168.1.0/29:22",
-				"192.168.1.8/30:22",
-				"192.168.1.12/31:22",
-				"192.168.1.14/32:22",
+				"192.168.1.8/31:22",
+				"192.168.1.11/32:22",
+				"192.168.1.12/30:22",
 				"192.168.1.16/28:22",
 				"192.168.1.32/27:22",
 				"192.168.1.64/26:22",
-				"192.168.1.128/25:22",
+				"192.168.1.128/29:22",
+				"192.168.1.136/32:22",
+				"192.168.1.138/31:22",
+				"192.168.1.140/30:22",
+				"192.168.1.144/28:22",
+				"192.168.1.160/27:22",
+				"192.168.1.192/26:22",
 			],
 		},
 
@@ -136,8 +143,8 @@
 		// its SSH port by either name or routed address.
 		{
 			"src":    "joshuagilman@gmail.com",
-			"accept": ["tag:macbackend:5900", "192.168.1.20:22", "10.10.10.14:8443"],
-			"deny":   ["tag:macbackend:22", "192.168.1.15:22"],
+			"accept": ["tag:macbackend:5900", "192.168.1.11:22", "10.10.10.14:8443"],
+			"deny":   ["tag:macbackend:22", "192.168.1.10:22", "192.168.1.137:22"],
 		},
 		// A sandbox host still reaches nothing on the Mac backend.
 		{
