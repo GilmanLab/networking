@@ -69,3 +69,12 @@ resource "routeros_interface_bridge_vlan" "vlan40" {
     routeros_interface_ethernet.sfp_sfpplus8.name,
   ]
 }
+
+resource "routeros_interface_bridge_vlan" "vlan50" {
+  bridge   = routeros_interface_bridge.lab.name
+  vlan_ids = ["50"]
+  tagged = [
+    routeros_interface_ethernet.sfp_sfpplus7.name,
+    routeros_interface_ethernet.sfp_sfpplus8.name,
+  ]
+}

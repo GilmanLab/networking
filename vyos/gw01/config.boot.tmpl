@@ -5,7 +5,7 @@
  *
  * Interface mapping:
  *   eth0  SFP+ 1  routed transit 10.0.0.2/30 to rtr01
- *   eth1  SFP+ 2  802.1Q trunk VLANs 10,40 to sw-core01
+ *   eth1  SFP+ 2  802.1Q trunk VLANs 10,40,50 to sw-core01
  *   eth2  Port 2  untagged VLAN 40 to sandbox01
  *   eth3  Port 1  802.1Q trunk VLANs 10,70 to sw-mgmt01
  *   eth4  Port 3  untagged VLAN 70 to pikvm01
@@ -15,6 +15,9 @@
  *   br10 = eth1.10 + eth3.10
  *   br40 = eth1.40 + eth2
  *   br70 = eth3.70 + eth4 + eth5
+ *
+ * VLAN 50 (services) has no untagged access port, so it is routed
+ * directly on eth1.50 without a bridge.
  *
  * The renderer replaces the SSH public-key sentinel in memory and appends
  * component metadata captured from the live /config/config.boot. The
@@ -41,6 +44,9 @@ firewall {
         }
         network-group LAB_SANDBOX {
             network 10.10.40.0/24
+        }
+        network-group LAB_SERVICES {
+            network 10.10.50.0/24
         }
         network-group LAB_OOB {
             network 10.10.70.0/24
@@ -109,6 +115,14 @@ firewall {
                         }
                     }
                 }
+                rule 150 {
+                    action jump
+                    description "Services inbound"
+                    inbound-interface {
+                        name eth1.50
+                    }
+                    jump-target SERVICES_FORWARD
+                }
             }
         }
         input {
@@ -168,6 +182,14 @@ firewall {
                         }
                     }
                 }
+                rule 150 {
+                    action jump
+                    description "Services to local"
+                    inbound-interface {
+                        name eth1.50
+                    }
+                    jump-target SERVICES_LOCAL
+                }
             }
         }
         name MGMT_FORWARD {
@@ -199,6 +221,15 @@ firewall {
                 destination {
                     group {
                         network-group LAB_SANDBOX
+                    }
+                }
+            }
+            rule 35 {
+                action accept
+                description "Allow management to services"
+                destination {
+                    group {
+                        network-group LAB_SERVICES
                     }
                 }
             }
@@ -362,6 +393,94 @@ firewall {
             default-action drop
             default-log
             description "Local services from sandbox"
+            rule 10 {
+                action accept
+                description "Allow ICMP"
+                protocol icmp
+            }
+            rule 20 {
+                action accept
+                description "Allow DNS UDP"
+                destination {
+                    port 53
+                }
+                protocol udp
+            }
+            rule 30 {
+                action accept
+                description "Allow DNS TCP"
+                destination {
+                    port 53
+                }
+                protocol tcp
+            }
+            rule 40 {
+                action accept
+                description "Allow DHCP"
+                destination {
+                    port 67
+                }
+                protocol udp
+            }
+        }
+        name SERVICES_FORWARD {
+            default-action drop
+            default-log
+            description "Forward from services"
+            rule 10 {
+                action drop
+                description "Block new connections to management"
+                destination {
+                    group {
+                        network-group LAB_MGMT
+                    }
+                }
+                state new
+            }
+            rule 20 {
+                action drop
+                description "Block new connections to OOB"
+                destination {
+                    group {
+                        network-group LAB_OOB
+                    }
+                }
+                state new
+            }
+            rule 30 {
+                action drop
+                description "Block new connections to sandbox"
+                destination {
+                    group {
+                        network-group LAB_SANDBOX
+                    }
+                }
+                state new
+            }
+            rule 40 {
+                action drop
+                description "Block new connections to home"
+                destination {
+                    group {
+                        network-group HOME_NETWORKS
+                    }
+                }
+                state new
+            }
+            rule 50 {
+                action accept
+                description "Allow internet egress"
+                destination {
+                    group {
+                        network-group !RFC1918
+                    }
+                }
+            }
+        }
+        name SERVICES_LOCAL {
+            default-action drop
+            default-log
+            description "Local services from services"
             rule 10 {
                 action accept
                 description "Allow ICMP"
@@ -626,7 +745,7 @@ interfaces {
         }
     }
     ethernet eth1 {
-        description "TRUNK - sw-core01 VLANs 10,40"
+        description "TRUNK - sw-core01 VLANs 10,40,50"
         offload {
             gro
             gso
@@ -638,6 +757,10 @@ interfaces {
         }
         vif 40 {
             description "LAB_SANDBOX - Bridge member (br40)"
+        }
+        vif 50 {
+            address 10.10.50.1/24
+            description "LAB_SERVICES - Services"
         }
     }
     ethernet eth2 {
@@ -734,6 +857,7 @@ service {
         listen-interface br10
         listen-interface br40
         listen-interface br70
+        listen-interface eth1.50
         shared-network-name LAB_MGMT {
             subnet 10.10.10.0/24 {
                 lease 86400
@@ -786,6 +910,20 @@ service {
                     mac 38:05:25:34:25:d0
                 }
                 subnet-id 3
+            }
+        }
+        shared-network-name LAB_SERVICES {
+            subnet 10.10.50.0/24 {
+                lease 86400
+                option {
+                    default-router 10.10.50.1
+                    name-server 10.10.50.1
+                }
+                range 0 {
+                    start 10.10.50.200
+                    stop 10.10.50.250
+                }
+                subnet-id 4
             }
         }
     }

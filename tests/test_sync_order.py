@@ -84,6 +84,7 @@ def test_verify_commands_require_accepted_state_and_reject_retired() -> None:
         "set interfaces bridge br70 address '10.10.70.1/24'",
         "set interfaces ethernet eth1 vif 10",
         "set interfaces ethernet eth1 vif 40",
+        "set interfaces ethernet eth1 vif 50 address '10.10.50.1/24'",
         "set interfaces ethernet eth3 vif 10",
         "set interfaces ethernet eth3 vif 70",
         "set interfaces bridge br10 member interface eth3.10",
@@ -94,6 +95,7 @@ def test_verify_commands_require_accepted_state_and_reject_retired() -> None:
         "set service dhcp-server listen-interface br10",
         "set service dhcp-server listen-interface br40",
         "set service dhcp-server listen-interface br70",
+        "set service dhcp-server listen-interface eth1.50",
         "set container name tailscale environment TS_ROUTES value '10.10.0.0/16'",
         "set container name tailscale image docker.io/tailscale/tailscale:v1.96.5",
         "set container name coredns-glab-lol",
@@ -107,6 +109,8 @@ def test_verify_commands_require_accepted_state_and_reject_retired() -> None:
         "set firewall ipv4 forward filter rule 120 jump-target SANDBOX_FORWARD",
         "set firewall ipv4 forward filter rule 130 inbound-interface name br70",
         "set firewall ipv4 forward filter rule 130 jump-target OOB_FORWARD",
+        "set firewall ipv4 forward filter rule 150 inbound-interface name eth1.50",
+        "set firewall ipv4 forward filter rule 150 jump-target SERVICES_FORWARD",
         "set firewall ipv4 input filter rule 100 inbound-interface name eth0",
         "set firewall ipv4 input filter rule 100 jump-target WAN_LOCAL",
         "set firewall ipv4 input filter rule 110 inbound-interface name br10",
@@ -115,6 +119,8 @@ def test_verify_commands_require_accepted_state_and_reject_retired() -> None:
         "set firewall ipv4 input filter rule 120 jump-target SANDBOX_LOCAL",
         "set firewall ipv4 input filter rule 130 inbound-interface name br70",
         "set firewall ipv4 input filter rule 130 jump-target OOB_LOCAL",
+        "set firewall ipv4 input filter rule 150 inbound-interface name eth1.50",
+        "set firewall ipv4 input filter rule 150 jump-target SERVICES_LOCAL",
     ]
     verify_commands(commands, stage="verification")
     with pytest.raises(ToolError, match="retired state"):
@@ -132,6 +138,7 @@ def test_operational_verification_requires_routes_interfaces_and_containers() ->
             "eth0 10.0.0.2/30 up\n"
             "br10 10.10.10.1/24 up\n"
             "br40 10.10.40.1/24 up\n"
+            "eth1.50 10.10.50.1/24 up\n"
             "br70 10.10.70.1/24 up"
         ),
         routes="S>* 0.0.0.0/0 [1/0] via 10.0.0.1, eth0",
@@ -144,6 +151,7 @@ def test_operational_verification_requires_routes_interfaces_and_containers() ->
                 "eth0 10.0.0.2/30 up\n"
                 "br10 10.10.10.1/24 up\n"
                 "br40 10.10.40.1/24 up\n"
+                "eth1.50 10.10.50.1/24 up\n"
                 "br70 10.10.70.1/24 up"
             ),
             routes="S>* 0.0.0.0/0 [1/0] via 10.0.0.1, eth0",

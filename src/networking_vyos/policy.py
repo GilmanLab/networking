@@ -27,6 +27,7 @@ _REQUIRED_PATTERNS: tuple[tuple[str, str], ...] = (
     (r"\b10\.0\.0\.2/30\b", "transit address"),
     (r"\b10\.10\.10\.1/24\b", "management gateway"),
     (r"\b10\.10\.40\.1/24\b", "sandbox gateway"),
+    (r"\b10\.10\.50\.1/24\b", "services gateway"),
     (r"\b10\.10\.70\.1/24\b", "OOB gateway"),
     (r"\bnext-hop\s+10\.0\.0\.1\b", "default route"),
     (r"\btailscale\b", "Tailscale"),
