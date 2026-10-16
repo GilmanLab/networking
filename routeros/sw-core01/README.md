@@ -111,6 +111,11 @@ VLAN 30 is L2-only. It is tagged on `bond-lab01`–`03` and `sfp-sfpplus7`
 (nas01). It is not tagged on `bridge-lab` or the gw01 trunk
 (`sfp-sfpplus8`).
 
+VLAN 50 (services) is routed on gw01 (`10.10.50.1/24`). It is tagged on
+`sfp-sfpplus8` (gw01 trunk) and `sfp-sfpplus7` (nas01) only, not on the
+lab bonds or `bridge-lab`. Apply it on sw-core01 before gw01 so the
+gateway's `eth1.50` has a path to nas01 as soon as it comes up.
+
 ## Notes
 
 - Ethernet names stay at factory (`ether1`, `sfp-sfpplus1`–`8`). Roles and

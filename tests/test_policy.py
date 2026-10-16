@@ -45,6 +45,21 @@ def test_sandbox_to_management_is_allowed() -> None:
             }""" in load_template()
 
 
+def test_services_to_management_is_blocked() -> None:
+    from networking_vyos.render import load_template
+
+    assert """rule 10 {
+                action drop
+                description "Block new connections to management"
+                destination {
+                    group {
+                        network-group LAB_MGMT
+                    }
+                }
+                state new
+            }""" in load_template()
+
+
 def test_invented_footer_is_rejected() -> None:
     with pytest.raises(ToolError, match="must not invent"):
         validate_template(VALID_TEMPLATE + '\n// vyos-config-version: "guessed@1"\n')

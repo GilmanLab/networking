@@ -14,6 +14,7 @@ REQUIRED_LINE_FRAGMENTS: tuple[tuple[str, ...], ...] = (
     ("set interfaces bridge br70 address", "10.10.70.1/24"),
     ("set interfaces ethernet eth1 vif 10",),
     ("set interfaces ethernet eth1 vif 40",),
+    ("set interfaces ethernet eth1 vif 50 address", "10.10.50.1/24"),
     ("set interfaces ethernet eth3 vif 10",),
     ("set interfaces ethernet eth3 vif 70",),
     ("set interfaces bridge br10 member interface eth3.10",),
@@ -24,6 +25,7 @@ REQUIRED_LINE_FRAGMENTS: tuple[tuple[str, ...], ...] = (
     ("set service dhcp-server listen-interface", "br10"),
     ("set service dhcp-server listen-interface", "br40"),
     ("set service dhcp-server listen-interface", "br70"),
+    ("set service dhcp-server listen-interface", "eth1.50"),
     ("set container name tailscale environment TS_ROUTES value", "10.10.0.0/16"),
     ("set container name tailscale",),
     ("set container name coredns-glab-lol",),
@@ -37,6 +39,8 @@ REQUIRED_LINE_FRAGMENTS: tuple[tuple[str, ...], ...] = (
     ("set firewall ipv4 forward filter rule 120 jump-target", "SANDBOX_FORWARD"),
     ("set firewall ipv4 forward filter rule 130 inbound-interface name", "br70"),
     ("set firewall ipv4 forward filter rule 130 jump-target", "OOB_FORWARD"),
+    ("set firewall ipv4 forward filter rule 150 inbound-interface name", "eth1.50"),
+    ("set firewall ipv4 forward filter rule 150 jump-target", "SERVICES_FORWARD"),
     ("set firewall ipv4 input filter rule 100 inbound-interface name", "eth0"),
     ("set firewall ipv4 input filter rule 100 jump-target", "WAN_LOCAL"),
     ("set firewall ipv4 input filter rule 110 inbound-interface name", "br10"),
@@ -45,6 +49,8 @@ REQUIRED_LINE_FRAGMENTS: tuple[tuple[str, ...], ...] = (
     ("set firewall ipv4 input filter rule 120 jump-target", "SANDBOX_LOCAL"),
     ("set firewall ipv4 input filter rule 130 inbound-interface name", "br70"),
     ("set firewall ipv4 input filter rule 130 jump-target", "OOB_LOCAL"),
+    ("set firewall ipv4 input filter rule 150 inbound-interface name", "eth1.50"),
+    ("set firewall ipv4 input filter rule 150 jump-target", "SERVICES_LOCAL"),
 )
 
 RETIRED_FRAGMENTS = (
@@ -104,6 +110,7 @@ def verify_operational_state(
         ("eth0", "10.0.0.2/30"),
         ("br10", "10.10.10.1/24"),
         ("br40", "10.10.40.1/24"),
+        ("eth1.50", "10.10.50.1/24"),
         ("br70", "10.10.70.1/24"),
     )
     for fragments in required_interfaces:

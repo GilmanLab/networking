@@ -15,6 +15,9 @@ interfaces {
         }
         vif 40 {
         }
+        vif 50 {
+            address 10.10.50.1/24
+        }
     }
     ethernet eth3 {
         vif 10 {
@@ -59,6 +62,7 @@ service {
         listen-interface br10
         listen-interface br40
         listen-interface br70
+        listen-interface eth1.50
     }
 }
 container {
