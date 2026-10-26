@@ -20,9 +20,13 @@
 		"tag:dntls":         ["autogroup:admin"],
 	},
 
-	// Studio remains a user-owned device; this alias is its tailnet IPv4.
+	// Studio and the MacBook remain user-owned devices; these aliases are their
+	// tailnet IPv4 and IPv6 addresses.
 	"hosts": {
-		"studio-1": "100.122.142.76",
+		"studio-1":       "100.122.142.76",
+		"studio-1-v6":    "fd7a:115c:a1e0::be39:8e4c",
+		"macbook-pro":    "100.123.79.63",
+		"macbook-pro-v6": "fd7a:115c:a1e0::e701:4f3f",
 	},
 
 	// Routes a subnet router may advertise without manual approval. These are
@@ -44,6 +48,20 @@
 		{"action": "accept", "src": ["tag:agentcompute"], "proto": "tcp", "dst": ["studio-1:22"]},
 		// Member devices reach the bearer-authenticated MCP HTTPS endpoint.
 		{"action": "accept", "src": ["autogroup:member"], "proto": "tcp", "dst": ["tag:agentcompute:443"]},
+
+		// dntls hosts reach each other, Studio, and the MacBook on any port,
+		// and nothing else.
+		{
+			"action": "accept",
+			"src":    ["tag:dntls"],
+			"dst": [
+				"tag:dntls:*",
+				"studio-1:*",
+				"studio-1-v6:*",
+				"macbook-pro:*",
+				"macbook-pro-v6:*",
+			],
+		},
 
 		// Subnet routers reach each other so routed traffic can transit
 		// between them.
@@ -105,6 +123,26 @@
 				"10.10.10.10:8443",
 				"10.10.10.11:8444",
 				"studio-1:22",
+			],
+		},
+		{
+			"src": "tag:dntls",
+			"accept": [
+				"tag:dntls:22",
+				"tag:dntls:3389",
+				"studio-1:22",
+				"studio-1-v6:5900",
+				"macbook-pro:22",
+				"macbook-pro-v6:5900",
+			],
+			"deny": [
+				"100.123.79.64:22",
+				"tag:agentcompute:443",
+				"tag:sandbox:22",
+				"tag:subnet-router:22",
+				"10.10.10.11:8443",
+				"172.16.10.10:22",
+				"192.168.1.137:22",
 			],
 		},
 	],
