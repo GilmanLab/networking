@@ -17,6 +17,7 @@
 		"tag:subnet-router": ["autogroup:admin"],
 		"tag:sandbox":       ["autogroup:admin", "tag:subnet-router"],
 		"tag:agentcompute":  ["autogroup:admin"],
+		"tag:dntls":         ["autogroup:admin"],
 	},
 
 	// Studio remains a user-owned device; this alias is its tailnet IPv4.
