@@ -49,17 +49,19 @@
 		// Member devices reach the bearer-authenticated MCP HTTPS endpoint.
 		{"action": "accept", "src": ["autogroup:member"], "proto": "tcp", "dst": ["tag:agentcompute:443"]},
 
-		// dntls hosts reach each other, Studio, and the MacBook on any port,
-		// and nothing else.
+		// dntls hosts reach each other on any port.
+		{"action": "accept", "src": ["tag:dntls"], "dst": ["tag:dntls:*"]},
+		// dntls hosts reach native OpenSSH on Studio and the MacBook, and
+		// nothing else.
 		{
 			"action": "accept",
 			"src":    ["tag:dntls"],
+			"proto":  "tcp",
 			"dst": [
-				"tag:dntls:*",
-				"studio-1:*",
-				"studio-1-v6:*",
-				"macbook-pro:*",
-				"macbook-pro-v6:*",
+				"studio-1:22",
+				"studio-1-v6:22",
+				"macbook-pro:22",
+				"macbook-pro-v6:22",
 			],
 		},
 
@@ -131,11 +133,15 @@
 				"tag:dntls:22",
 				"tag:dntls:3389",
 				"studio-1:22",
-				"studio-1-v6:5900",
+				"studio-1-v6:22",
 				"macbook-pro:22",
-				"macbook-pro-v6:5900",
+				"macbook-pro-v6:22",
 			],
 			"deny": [
+				"studio-1:5900",
+				"studio-1-v6:5900",
+				"macbook-pro:5900",
+				"macbook-pro-v6:5900",
 				"100.123.79.64:22",
 				"tag:agentcompute:443",
 				"tag:sandbox:22",
