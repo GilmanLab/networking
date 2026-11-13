@@ -40,6 +40,13 @@
 		},
 	},
 
+	// Studio may expose local services to the public internet with Tailscale
+	// Funnel. The attribute is scoped to that one device; no other node can
+	// start a funnel.
+	"nodeAttrs": [
+		{"target": ["studio-1"], "attr": ["funnel"]},
+	],
+
 	"acls": [
 		// Admins reach everything in the tailnet.
 		{"action": "accept", "src": ["autogroup:admin"], "dst": ["*:*"]},
